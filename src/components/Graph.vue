@@ -4,8 +4,9 @@
         :id="uniqId"
       >
         <g>
-          <!-- переиспользуемые стрелочки -->
+          <!-- переиспользуемые элементы -->
           <defs>
+            <!-- стрелочки -->
             <marker id="arrowhead" viewBox="-0 -5 10 10" refX="18" refY="0" orient="auto" markerWidth="13" markerHeight="13" xoverflow="visible">
               <path d="M 0,-3 L 10 ,0 L 0,3" fill="#999" style="stroke: none;"></path>
             </marker>
@@ -17,38 +18,37 @@
 <script>
     import * as d3 from "d3";
 
+    import Graph from 'javascript-algorithms-and-data-structures/src/data-structures/graph/Graph';
+    import GraphVertex from 'javascript-algorithms-and-data-structures/src/data-structures/graph/GraphVertex';
+    import GraphEdge from 'javascript-algorithms-and-data-structures/src/data-structures/graph/GraphEdge';
+
+    let simulation = null;
+
     export default {
         name: 'Graph',
         components: {},
         props: {
+          // высота в пикселях
             h: {
                 type: Number,
             },
+            // ширина в пикселях
             w: {
                 type: Number,
+            },
+            // узлы графа
+            nodes: {
+                type: Array,
+            },
+            // рёбра графа
+            links: {
+                type: Array,
             },
         },
 
         computed: {
           uniqId() {
               return 'graph' + this._uid;
-          },
-          nodes() {
-            return new Array(100).fill(0).map((x, i) => {
-              return {
-                  id: i,
-                  group: Math.round(Math.random()*9),
-                  name: "test",
-                }
-            });
-          },
-          links() {
-            return new Array(100).fill(0).map(() => {
-              return {
-                source: Math.round(Math.random()*49),
-                target: Math.round(Math.random()*49),
-              }
-            });
           },
           width() {
             return this.w || 1000;
@@ -64,29 +64,60 @@
 
         mounted() {
             this.chart();
+
+            this.prepareGraph();
         },
         methods: {
+            // выгрузка графа в стуктуру для работы с алгоритмами графов
+            prepareGraph() {
+              const graph = new Graph();
+
+              for(let node of this.nodes) {
+                graph.addVertex(new GraphVertex(node.id));
+              }
+              for(let link of this.links) {
+                const edge = new GraphEdge(
+                  new GraphVertex(link.source.id),
+                  new GraphVertex(link.target.id)
+                );
+                if(!graph.edges[edge.getKey()]) {
+                  graph.addEdge(edge);
+                }
+              }
+
+              console.log(graph);
+            },
+
+
+            // добавляет физические границы для графа
+            addBounds() {
+              this.simulation.force("bounds", () => {
+                    let xExtent = [10, this.width-10];
+                    let yExtent = [10, this.height-10];
+                    for (let node of this.nodes) {
+                        node.x = Math.max(xExtent[0], Math.min(xExtent[1], node.x));
+                        node.y = Math.max(yExtent[0], Math.min(yExtent[1], node.y));
+                    }
+                });
+            },
+
+            // отрисовка графа
             chart() {
                 let links = this.links;
                 let nodes = this.nodes;
 
-                // function boxingForce() {
-                //     let xExtent = [10, this.width-10];
-                //     let yExtent = [10, this.height-10];
-                //     for (let node of nodes) {
-                //         node.x = Math.max(xExtent[0], Math.min(xExtent[1], node.x));
-                //         node.y = Math.max(yExtent[0], Math.min(yExtent[1], node.y));
-                //     }
-                // }
+                let nodeWidth = 20;
+                let nodeHeight = 20;
 
-                const simulation = d3.forceSimulation(nodes)
+                simulation = d3.forceSimulation(nodes)
                     .force("link", d3.forceLink(links).id(d => d.id).distance(100).iterations(10))
                     .force("charge", d3.forceManyBody().strength(-100))
                     .force("center", d3.forceCenter(this.width / 2, this.height / 2))
                     // чтобы не разбегались
                     .force("x", d3.forceX())
                     .force("y", d3.forceY())
-                    // .force("bounds", boxingForce);
+                    // чтобы не перекрывались
+                    .force("collision", d3.forceCollide(nodeWidth + nodeHeight).strength(1).iterations(100))
                     // .velocityDecay(0.5);
 
                 simulation.on("tick", () => {
@@ -100,11 +131,11 @@
                           return colorScale(d.group);
                           // return colorScale(Math.round(Math.random()*10))
                         })
-                        .attr("x", d => d.x - 10)
-                        .attr("y", d => d.y - 10);
+                        .attr("x", d => d.x - nodeWidth / 2)
+                        .attr("y", d => d.y - nodeHeight / 2);
                     text
-                        .attr("x", d => d.x - 10)
-                        .attr("y", d => d.y - 10);
+                        .attr("x", d => d.x - nodeWidth / 2)
+                        .attr("y", d => d.y - nodeHeight / 2);
                 });
 
                 const pane = d3.select('#' + this.uniqId)
@@ -112,7 +143,7 @@
                     .call(
                       d3.zoom()
                       .extent([[0, 0], [this.width, this.height]])
-                      .scaleExtent([0.1, 5])
+                      .scaleExtent([0.1, 2])
                       .on("zoom", ({transform}) => { pane.attr("transform", transform) })
                     ).select('g');
 
@@ -134,17 +165,18 @@
                 const node = group.append("rect")
                     .attr("stroke", "#fff")
                     .attr("stroke-width", 1.5)
-                    .attr("width", 20)
-                    .attr("height", 20)
+                    .attr("width", nodeWidth)
+                    .attr("height", nodeHeight)
                     .attr("fill", d => colorScale(d.group))
-                    .call(this.drag(simulation));
+                    .call(this.drag());
 
                 const text = group.append("text")
                     .attr("color", "#FFF")
                     .text(d => d.name);
             },
-            drag(simulation) {
 
+            // перетаскивание узлов графа
+            drag() {
                 function dragstarted(event, d) {
                     if (!event.active) simulation.alphaTarget(0.3).restart();
                     d.fx = d.x;

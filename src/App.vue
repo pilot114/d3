@@ -1,17 +1,23 @@
 <template>
   <div id="grid">
       <div>
-        <Graph/>
+        <Graph
+          :nodes="new Array(100).fill(0).map((x, i) => {
+              return {
+                  id: i,
+                  group: 1,//Math.round(Math.random()*9),
+                  name: 'test',
+                }
+            })"
+          :links="new Array(100).fill(0).map(() => {
+              return {
+                source: Math.round(Math.random()*49),
+                target: Math.round(Math.random()*49),
+              }
+            })"
+          :h="500"
+        />
       </div>
-      <!-- <div>
-        <Graph/>
-      </div>
-      <div>
-        <Graph/>
-      </div>
-      <div>
-        <Graph/>
-      </div> -->
   </div>
 </template>
 
