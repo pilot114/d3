@@ -10,7 +10,7 @@
   "dependencies": {
     "core-js": "^3.6.5",
     "d3": "^6.1.1",
-    "javascript-algorithms-and-data-structures": "0.0.4",
+    "javascript-algorithms-and-data-structures": "git+https://github.com/trekhleb/javascript-algorithms.git",
     "vue": "^2.6.11"
   },
   "devDependencies": {

@@ -7,7 +7,10 @@
           <!-- переиспользуемые элементы -->
           <defs>
             <!-- стрелочки -->
-            <marker id="arrowhead" viewBox="-0 -5 10 10" refX="18" refY="0" orient="auto" markerWidth="13" markerHeight="13" xoverflow="visible">
+            <marker
+              v-if=isDirected
+              id="arrowhead" viewBox="-0 -5 10 10" refX="18" refY="0" orient="auto" markerWidth="13" markerHeight="13" xoverflow="visible"
+            >
               <path d="M 0,-3 L 10 ,0 L 0,3" fill="#999" style="stroke: none;"></path>
             </marker>
           </defs>
@@ -21,6 +24,10 @@
     import Graph from 'javascript-algorithms-and-data-structures/src/data-structures/graph/Graph';
     import GraphVertex from 'javascript-algorithms-and-data-structures/src/data-structures/graph/GraphVertex';
     import GraphEdge from 'javascript-algorithms-and-data-structures/src/data-structures/graph/GraphEdge';
+
+    import kruskal from 'javascript-algorithms-and-data-structures/src/algorithms/graph/kruskal/kruskal';
+    import dijkstra from 'javascript-algorithms-and-data-structures/src/algorithms/graph/dijkstra/dijkstra';
+    import floydWarshall from 'javascript-algorithms-and-data-structures/src/algorithms/graph/floyd-warshall/floydWarshall';
 
     let simulation = null;
 
@@ -44,6 +51,11 @@
             links: {
                 type: Array,
             },
+
+            isDirected: {
+                type: Boolean,
+                default: false
+            },
         },
 
         computed: {
@@ -60,32 +72,104 @@
           viewBox() {
             return [0, 0, this.width, this.height];
           },
+            // выгрузка графа в списки смежности для работы с алгоритмами графов
+          graph() {
+            const graph = new Graph();
+            graph.isDirected = this.isDirected;
+
+            let vs = {};
+            for(let node of this.nodes) {
+              vs[node.id] = new GraphVertex(node.id);
+              graph.addVertex(vs[node.id]);
+            }
+            for(let link of this.links) {
+              const edge = new GraphEdge(
+                vs[link.source.id],
+                vs[link.target.id],
+                link.weight
+              );
+              if(!graph.edges[edge.getKey()]) {
+                graph.addEdge(edge);
+              }
+            }
+            return graph;
+          },
+
+          // далее идут вычисления по эффективным алгоритмам
+
+          /**
+           * minimum-spanning-tree - находит минимальный набор ребер, связывающий все указанные узлы
+           * учитывает вес ребер
+           */
+          mst() {
+            // только на ненаправленных графах
+            if (this.graph.isDirected) return null;
+            
+            const minimumSpanningTree = kruskal(this.graph);
+            let mstInfo = {
+              weight: minimumSpanningTree.getWeight(),
+              vertices: minimumSpanningTree.getAllVertices().length,
+              edges: minimumSpanningTree.getAllEdges().length,
+              def: minimumSpanningTree.toString(),
+            };
+            console.log(mstInfo);
+            return minimumSpanningTree;
+          },
+          /**
+           * Находит кратчайший путь до каждого узла, начиная от указанного
+           * учитывает вес ребер
+           */
+          dijkstra() {
+            // выбираем начальный узел
+            let root = this.graph.vertices[0];
+            const { distances, previousVertices } = dijkstra(this.graph, root);
+
+            return distances;
+          },
+          /**
+           * Находит кратчайшие пути во взвешенном графе
+           */
+          floydWarshall() {
+            const { distances, nextVertices } = floydWarshall(this.graph);
+            return distances;
+        },
         },
 
         mounted() {
+            // http://bl.ocks.org/erkal/9746513
+            // const { nodes, links } = this.generateRandomData(100, 60);
+            // this.nodes = nodes;
+            // this.links = links;
+
             this.chart();
 
-            this.prepareGraph();
+            console.log(this.graph);
+            console.log(this.mst);
+            console.log(this.dijkstra);
+            console.log(this.floydWarshall);
         },
         methods: {
-            // выгрузка графа в стуктуру для работы с алгоритмами графов
-            prepareGraph() {
-              const graph = new Graph();
-
-              for(let node of this.nodes) {
-                graph.addVertex(new GraphVertex(node.id));
+            generateRandomData(n, m) {
+              let nodes = d3.range(n).map(Object);
+              let list  = this.randomChoose(this.unorderedPairs(d3.range(n)), m);
+              let links = list.map(function (a) { return {source: a[0], target: a[1]} });
+              return {nodes, links};
+            },
+            randomChoose (s, k) {
+              var a = [], i = -1, j;
+              while (++i < k) {
+                j = Math.floor(Math.random() * s.length);
+                a.push(s.splice(j, 1)[0]);
               }
-              for(let link of this.links) {
-                const edge = new GraphEdge(
-                  new GraphVertex(link.source.id),
-                  new GraphVertex(link.target.id)
-                );
-                if(!graph.edges[edge.getKey()]) {
-                  graph.addEdge(edge);
-                }
+              return a;
+            },
+            unorderedPairs (s) {
+              var i = -1, a = [], j;
+              while (++i < s.length) {
+                j = i;
+                while (++j < s.length) a.push([s[i],s[j]])
               }
-
-              console.log(graph);
+              return a;
             },
 
 
@@ -152,8 +236,11 @@
                     .data(links)
                     .join("line")
                     .attr("stroke", "#999")
-                    .attr("stroke-opacity", 0.6)
-                    .attr('marker-end', 'url(#arrowhead)');
+                    .attr("stroke-opacity", 0.6);
+
+                if (this.isDirected) {
+                  link.attr('marker-end', 'url(#arrowhead)');
+                }
 
                 const group = pane.append("g")
                     .selectAll("g")

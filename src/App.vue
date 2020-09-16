@@ -2,20 +2,22 @@
   <div id="grid">
       <div>
         <Graph
+          :isDirected="false"
           :nodes="new Array(100).fill(0).map((x, i) => {
               return {
                   id: i,
                   group: 1,//Math.round(Math.random()*9),
-                  name: 'test',
+                  name: i,
                 }
             })"
-          :links="new Array(100).fill(0).map(() => {
+          :links="new Array(100).fill(0).map((x, i) => {
               return {
-                source: Math.round(Math.random()*49),
-                target: Math.round(Math.random()*49),
+                source: i,
+                target: i > 50 ? i-1 : i+1,
+                weight: 1,
               }
             })"
-          :h="500"
+          :h="800"
         />
       </div>
   </div>
