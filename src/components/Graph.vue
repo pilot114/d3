@@ -11,7 +11,7 @@
                     v-if=isDirected
                     id="arrowhead" viewBox="-0 -5 10 10" refX="18" refY="0" orient="auto" markerWidth="13"
                     markerHeight="13"
-                    xoverflow="visible"
+                    overflow="visible"
                 >
                     <path d="M 0,-3 L 10 ,0 L 0,3" fill="#999" style="stroke: none;"></path>
                 </marker>
@@ -45,13 +45,21 @@ export default {
         w: {
             type: Number,
         },
-        // узлы графа
+        // узлы графа. Свойства:
+        // id - идентификатор, на который ссылаются рёбра
+        // group - идентификатор группы (у групп будут разные цвета)
+        // name - подпись к узлу
         nodes: {
             type: Array,
+            default: () => []
         },
-        // рёбра графа
+        // рёбра графа. Свойства:
+        // source - идентификатор входного узла
+        // target - идентификатор выходного узла
+        // weight - вес ребра
         links: {
             type: Array,
+            default: () => []
         },
 
         isDirected: {
@@ -67,6 +75,11 @@ export default {
         weightAsDistanceCoof: {
             type: Number,
             default: 1
+        },
+        // по умолчанию - граф "разбегается"
+        isHuddle: {
+            type: Boolean,
+            default: false
         }
     },
 
@@ -84,17 +97,26 @@ export default {
         viewBox() {
             return [0, 0, this.width, this.height];
         },
+        // используем входные данные или генерим случайные
+        graphData() {
+            if (this.nodes.length === 0 && this.links.length === 0) {
+                return this.generateRandomData(100, 80);
+            }
+            return { nodes: this.nodes, links: this.links };
+        },
         // выгрузка графа в списки смежности для работы с алгоритмами графов
         graph() {
             const graph = new Graph();
             graph.isDirected = this.isDirected;
 
+            const {nodes, links} = this.graphData;
+
             let vs = {};
-            for (let node of this.nodes) {
+            for (let node of nodes) {
                 vs[node.id] = new GraphVertex(node.id);
                 graph.addVertex(vs[node.id]);
             }
-            for (let link of this.links) {
+            for (let link of links) {
                 const edge = new GraphEdge(
                     vs[link.source.id],
                     vs[link.target.id],
@@ -147,29 +169,37 @@ export default {
     },
 
     mounted() {
-        // http://bl.ocks.org/erkal/9746513
-        // const { nodes, links } = this.generateRandomData(100, 60);
-        // this.nodes = nodes;
-        // this.links = links;
-
-        this.chart();
-
-        console.log(this.graph);
-        console.log(this.mst);
-        console.log(this.dijkstra);
-        console.log(this.floydWarshall);
+        this.renderGraph();
+        this.debug();
     },
     methods: {
+        debug() {
+            console.log(this.graph);
+            console.log(this.mst);
+            console.log(this.dijkstra);
+            console.log(this.floydWarshall);
+        },
+
         generateRandomData(n, m) {
-            let nodes = d3.range(n).map(Object);
+            let nodes = d3.range(n).map(Object).map((x,i) => {
+                return {
+                    id: i,
+                    group: Math.round(Math.random()*9),
+                    name: i,
+                }
+            });
             let list = this.randomChoose(this.unorderedPairs(d3.range(n)), m);
             let links = list.map(function (a) {
-                return {source: a[0], target: a[1]}
+                return {
+                    source: a[0],
+                    target: a[1],
+                    weight: Math.round(Math.random()*10)
+                }
             });
             return {nodes, links};
         },
         randomChoose(s, k) {
-            var a = [], i = -1, j;
+            let a = [], i = -1, j;
             while (++i < k) {
                 j = Math.floor(Math.random() * s.length);
                 a.push(s.splice(j, 1)[0]);
@@ -177,7 +207,7 @@ export default {
             return a;
         },
         unorderedPairs(s) {
-            var i = -1, a = [], j;
+            let i = -1, a = [], j;
             while (++i < s.length) {
                 j = i;
                 while (++j < s.length) a.push([s[i], s[j]])
@@ -191,7 +221,9 @@ export default {
             this.simulation.force("bounds", () => {
                 let xExtent = [10, this.width - 10];
                 let yExtent = [10, this.height - 10];
-                for (let node of this.nodes) {
+
+                const { nodes } = this.graphData;
+                for (let node of nodes) {
                     node.x = Math.max(xExtent[0], Math.min(xExtent[1], node.x));
                     node.y = Math.max(yExtent[0], Math.min(yExtent[1], node.y));
                 }
@@ -199,9 +231,8 @@ export default {
         },
 
         // отрисовка графа
-        chart() {
-            let links = this.links;
-            let nodes = this.nodes;
+        renderGraph() {
+            const {nodes, links} = this.graphData;
 
             let nodeWidth = 20;
             let nodeHeight = 20;
@@ -215,12 +246,13 @@ export default {
                 )
                 .force("charge", d3.forceManyBody().strength(-100))
                 .force("center", d3.forceCenter(this.width / 2, this.height / 2))
-                // чтобы не разбегались
-                .force("x", d3.forceX())
-                .force("y", d3.forceY())
                 // чтобы не перекрывались
                 .force("collision", d3.forceCollide(nodeWidth + nodeHeight).strength(1).iterations(100))
             // .velocityDecay(0.5);
+
+            if (this.isHuddle) {
+                simulation.force("x", d3.forceX()).force("y", d3.forceY())
+            }
 
             simulation.on("tick", () => {
                 link

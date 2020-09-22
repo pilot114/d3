@@ -1,5 +1,15 @@
 <template>
     <div id="grid">
+
+        <div>
+            <Graph isDirected/>
+        </div>
+        <div>
+            <Graph isWeightAsDistance :weightAsDistanceCoof="30"/>
+        </div>
+        <div>
+            <Graph isHuddle/>
+        </div>
         <div>
             <Graph
                 :isDirected="false"
@@ -17,7 +27,6 @@
                         weight: Math.round(Math.random()*10)
                     }
                 })"
-                :h="800"
             />
         </div>
     </div>
@@ -36,8 +45,9 @@ export default {
 <style>
 #grid {
     display: grid;
-    grid-template-rows: 1fr;
-    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: .5vw;
 }
 
 #grid div {
