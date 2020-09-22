@@ -6,7 +6,7 @@
           :nodes="new Array(100).fill(0).map((x, i) => {
               return {
                   id: i,
-                  group: 1,//Math.round(Math.random()*9),
+                  group: Math.round(Math.random()*9),
                   name: i,
                 }
             })"
@@ -14,7 +14,7 @@
               return {
                 source: i,
                 target: i > 50 ? i-1 : i+1,
-                weight: 1,
+                weight: Math.round(Math.random()*10)
               }
             })"
           :h="800"
