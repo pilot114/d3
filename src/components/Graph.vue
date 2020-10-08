@@ -302,6 +302,7 @@ export default {
             let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
             const node = group.append("rect")
+                .attr("cursor", "pointer")
                 .attr("stroke", "#fff")
                 .attr("stroke-width", 1.5)
                 .attr("width", nodeWidth)
